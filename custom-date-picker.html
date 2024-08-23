@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom Date Picker</title>
+
+    <style>
+      body {
+        padding: 40px;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        color: #1a1919;
+      }
+      *,
+      *::after,
+      *::before {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+      }
+
+      form.open .mh-d-calender {
+        display: block;
+      }
+
+      .mh-d-calender {
+        display: none;
+        margin-top: 20px;
+        background-color: white;
+        border-radius: 4px;
+        box-shadow: 0 0 5px 5px rgba(0, 0, 0, 0.04);
+        width: 300px;
+        padding: 10px;
+        position: relative;
+        border: 1px solid #ddd;
+      }
+
+      .mh-d-calender .month-and-year {
+        text-align: center;
+        font-size: 16px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+      }
+
+      .mh-d-calender > button.button {
+        position: absolute;
+        top: 8px;
+        background-color: transparent;
+        border: none;
+        outline: none;
+        font-size: 22px;
+
+        border-radius: 4px;
+        color: #1dbf73;
+        cursor: pointer;
+      }
+
+      .mh-d-calender > button.button.prev {
+        left: 10px;
+      }
+      .mh-d-calender > button.button.next {
+        right: 10px;
+      }
+
+      .mh-d-calender .mh-d-tableHeadTr {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .mh-d-calender .mh-d-tableTh {
+        font-size: 14px;
+        background-color: #1dbf73;
+        color: white;
+        padding: 2px 5px;
+        text-align: center;
+      }
+
+      .mh-d-calender .mh-d-tableTr {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+        margin-top: 5px;
+      }
+
+      .mh-d-calender .mh-d-tableTd {
+        border: 1px solid #ddd;
+        border-radius: 2px;
+        text-align: center;
+        aspect-ratio: 5/4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      .mh-d-calender .mh-d-tableTd:hover:not(.mh-d-tableTd.mh-d-empty) {
+        background-color: #1dbf73;
+      }
+
+      .mh-d-calender .mh-d-tableTr .mh-d-tableTd.mh-d-empty {
+        border: none;
+      }
+
+      .date-input {
+        border: 1px solid #b9b9b9;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: "Lucida Sans", "Lucida Sans Regular", "Lucida Grande",
+          "Lucida Sans Unicode", Geneva, Verdana, sans-serif;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <form>
+      <input
+        type="text"
+        readonly
+        placeholder="Pick a date"
+        class="date-input"
+      />
+    </form>
+
+    <script>
+      class Calendar {
+        constructor(inputSelector) {
+          this.input = document.querySelector(inputSelector);
+          this.form = this.input.parentElement;
+          this.popupContainer = null;
+          this.monthContainer = null;
+          this.tableContainer = null;
+          this.table = document.createElement("div");
+          this.table.classList.add("mh-d-table");
+          this.months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+          this.selectedMonth = new Date().getMonth();
+          this.selectedYear = new Date().getFullYear();
+
+          this.buildCalendar();
+          this.setMainEventListener();
+        }
+
+        buildCalendar() {
+          this.popupContainer = document.createElement("div");
+          this.popupContainer.classList.add("mh-d-calender");
+          this.form.appendChild(this.popupContainer);
+
+          this.monthContainer = document.createElement("div");
+          this.monthContainer.classList.add("month-and-year");
+          this.monthContainer.innerHTML = `<h4>${this.getMonth()} ${this.getYear()}</h4>`;
+          this.popupContainer.appendChild(this.monthContainer);
+
+          this.createButtons();
+
+          this.populateTable(this.selectedMonth, this.selectedYear);
+        }
+
+        createButtons() {
+          const prev = document.createElement("button");
+          prev.classList.add("button", "prev");
+          prev.innerHTML =
+            '<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path fill="none" d="M0 0h24v24H0V0z"></path><path d="M15.61 7.41 14.2 6l-6 6 6 6 1.41-1.41L11.03 12l4.58-4.59z"></path></svg>';
+          const next = document.createElement("button");
+          next.classList.add("button", "next");
+          next.innerHTML =
+            '<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path fill="none" d="M0 0h24v24H0V0z"></path><path d="M10.02 6 8.61 7.41 13.19 12l-4.58 4.59L10.02 18l6-6-6-6z"></path></svg>';
+
+          prev.addEventListener("click", (e) => {
+            e.preventDefault();
+            this.updateMonth(this.selectedMonth - 1);
+          });
+
+          next.addEventListener("click", (e) => {
+            e.preventDefault();
+            this.updateMonth(this.selectedMonth + 1);
+          });
+
+          this.popupContainer.appendChild(prev);
+          this.popupContainer.appendChild(next);
+        }
+
+        populateTable(month, year) {
+          this.table.innerHTML = "";
+
+          const namesRow = document.createElement("div");
+          namesRow.classList.add("mh-d-tableHeadTr");
+          ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].forEach((name) => {
+            const th = document.createElement("div");
+            th.classList.add("mh-d-tableTh");
+            th.innerHTML = name;
+            namesRow.appendChild(th);
+          });
+          this.table.appendChild(namesRow);
+
+          const tempDate = new Date(year, month, 1);
+          let firstMonthDay = tempDate.getDay();
+          firstMonthDay = firstMonthDay === 0 ? 7 : tempDate.getDay();
+
+          const daysInMonth = this.getDaysInMonth(month, year);
+          const j = daysInMonth + firstMonthDay - 1;
+
+          let tr = document.createElement("div");
+
+          if (firstMonthDay - 1 !== 0) {
+            tr = document.createElement("div");
+            tr.classList.add("mh-d-tableTr");
+            this.table.appendChild(tr);
+          }
+
+          for (let i = 0; i < firstMonthDay - 1; i++) {
+            const td = document.createElement("div");
+            td.classList.add("mh-d-tableTd");
+            td.classList.add("mh-d-empty");
+            td.innerHTML = "";
+            tr.appendChild(td);
+          }
+
+          for (let i = firstMonthDay - 1; i < j; i++) {
+            if (i % 7 === 0) {
+              tr = document.createElement("div");
+              tr.classList.add("mh-d-tableTr");
+              this.table.appendChild(tr);
+            }
+
+            const td = document.createElement("div");
+            td.classList.add("mh-d-tableTd");
+            td.innerText = i - firstMonthDay + 2;
+            td.dayNr = i - firstMonthDay + 2;
+
+            td.addEventListener("click", (e) => {
+              const selectedDay = e.target.innerHTML;
+              this.fillInput(selectedDay);
+              this.hideCalendar();
+            });
+
+            tr.appendChild(td);
+          }
+
+          this.popupContainer.appendChild(this.table);
+        }
+
+        fillInput(day) {
+          day = day < 10 ? "0" + day : day;
+          let month = null;
+          month =
+            this.selectedMonth < 9
+              ? "0" + (this.selectedMonth + 1)
+              : this.selectedMonth + 1;
+          this.input.value = `${day}.${month}.${this.selectedYear}`;
+        }
+
+        updateMonth(month) {
+          this.selectedMonth = month;
+          if (this.selectedMonth < 0) {
+            this.selectedYear--;
+            this.selectedMonth = 11;
+          } else if (this.selectedMonth > 11) {
+            this.selectedYear++;
+            this.selectedMonth = 0;
+          }
+          this.monthContainer.innerHTML = `<h4>${
+            this.months[this.selectedMonth]
+          } ${this.selectedYear}</h4>`;
+
+          this.populateTable(this.selectedMonth, this.selectedYear);
+        }
+
+        getMonth() {
+          return this.months[this.selectedMonth];
+        }
+
+        getYear() {
+          return this.selectedYear;
+        }
+
+        getDaysInMonth(month, year) {
+          return new Date(year, month + 1, 0).getDate();
+        }
+
+        hideCalendar() {
+          this.form.classList.remove("open");
+        }
+
+        setMainEventListener() {
+          this.input.addEventListener("click", (e) => {
+            this.form.classList.toggle("open");
+
+            if (!this.form.classList.contains("open")) {
+              this.hideCalendar();
+            }
+          });
+        }
+      }
+
+      new Calendar(".date-input");
+    </script>
+  </body>
+</html>
